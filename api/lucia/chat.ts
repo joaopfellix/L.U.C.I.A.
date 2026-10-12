@@ -1,7 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
-
-const apiKey = process.env.GEMINI_API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+const GROQ_API_KEY = process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || '';
 
 const LUCIA_BASE_SYSTEM_INSTRUCTION = `Você é L.U.C.I.A. (Logic Unit for Computing & Intelligent Automation).
 
@@ -40,14 +37,14 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: 'A mensagem do usuário é obrigatória.' });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!GROQ_API_KEY) {
       return res.status(500).json({
-        error: 'Chave GEMINI_API_KEY não configurada na Vercel.',
+        error: 'Chave de API não configurada na Vercel.',
       });
     }
 
-    // Separação de planos com a versão mais recente do Google Gemini (3.8)
-    const modelToUse = isPro ? 'gemini-3.8-pro' : 'gemini-3.8-flash';
+    // Modelo gratuito ultrarrápido: Llama 3.3 70B Versatile
+    const modelToUse = isPro ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
 
     // Memória contextual
     let memoryContextString = '';
@@ -70,36 +67,49 @@ export default async function handler(req: any, res: any) {
 
     const fullInstruction = `${LUCIA_BASE_SYSTEM_INSTRUCTION}${memoryContextString}${modeInstruction}`;
 
-    // Montar histórico de mensagens recentes
-    const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
+    // Montar mensagens no formato padrão
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+      { role: 'system', content: fullInstruction },
+    ];
 
     if (Array.isArray(history)) {
       for (const item of history.slice(-10)) {
         if (item && item.text && item.role) {
-          contents.push({
-            role: item.role === 'model' ? 'model' : 'user',
-            parts: [{ text: item.text }],
+          messages.push({
+            role: item.role === 'model' || item.role === 'assistant' ? 'assistant' : 'user',
+            content: item.text,
           });
         }
       }
     }
 
-    contents.push({
+    messages.push({
       role: 'user',
-      parts: [{ text: message }],
+      content: message,
     });
 
-    // Chamada à API oficial do Google Gemini
-    const response = await ai.models.generateContent({
-      model: modelToUse,
-      contents: contents,
-      config: {
-        systemInstruction: fullInstruction,
-        temperature: 0.6,
+    // Chamada direta à API do Groq via fetch (sem precisar instalar nenhum pacote extra)
+    const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${GROQ_API_KEY}`,
       },
+      body: JSON.stringify({
+        model: modelToUse,
+        messages: messages,
+        temperature: 0.6,
+        max_tokens: 2048,
+      }),
     });
 
-    const replyText = response.text || '';
+    if (!groqResponse.ok) {
+      const errData = await groqResponse.json().catch(() => ({}));
+      throw new Error(JSON.stringify(errData));
+    }
+
+    const data = await groqResponse.json();
+    const replyText = data.choices?.[0]?.message?.content || '';
 
     return res.status(200).json({
       text: replyText,
@@ -111,7 +121,7 @@ export default async function handler(req: any, res: any) {
   } catch (error: any) {
     console.error('Erro na API da L.U.C.I.A.:', error);
     return res.status(500).json({
-      error: 'Falha ao processar solicitação com o modelo Gemini.',
+      error: 'Falha ao processar solicitação.',
       details: error?.message || String(error),
     });
   }
