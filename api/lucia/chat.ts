@@ -43,9 +43,6 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // Modelo gratuito ultrarrápido: Llama 3.3 70B Versatile
-    const modelToUse = isPro ? 'llama-3.3-70b-versatile' : 'llama-3.1-8b-instant';
-
     // Memória contextual
     let memoryContextString = '';
     if (Array.isArray(memories) && memories.length > 0) {
@@ -88,32 +85,53 @@ export default async function handler(req: any, res: any) {
       content: message,
     });
 
-    // Chamada direta à API do Groq via fetch (sem precisar instalar nenhum pacote extra)
-    const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: modelToUse,
-        messages: messages,
-        temperature: 0.6,
-        max_tokens: 2048,
-      }),
-    });
+    // Modelos suportados no Groq em ordem de prioridade
+    const candidateModels = isPro
+      ? ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile', 'llama3-70b-8192', 'mixtral-8x7b-32768']
+      : ['openai/gpt-oss-20b', 'llama-3.1-8b-instant', 'llama3-8b-8192', 'gemma-7b-it'];
 
-    if (!groqResponse.ok) {
-      const errData = await groqResponse.json().catch(() => ({}));
-      throw new Error(JSON.stringify(errData));
+    let lastError: any = null;
+    let successfulReply = '';
+    let usedModel = '';
+
+    // Tenta os modelos disponíveis em ordem
+    for (const modelCandidate of candidateModels) {
+      try {
+        const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${GROQ_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: modelCandidate,
+            messages: messages,
+            temperature: 0.6,
+            max_tokens: 2048,
+          }),
+        });
+
+        if (groqResponse.ok) {
+          const data = await groqResponse.json();
+          successfulReply = data.choices?.[0]?.message?.content || '';
+          usedModel = modelCandidate;
+          break; // Sucesso, sai do loop
+        } else {
+          const errData = await groqResponse.json().catch(() => ({}));
+          lastError = errData;
+        }
+      } catch (err: any) {
+        lastError = err?.message || String(err);
+      }
     }
 
-    const data = await groqResponse.json();
-    const replyText = data.choices?.[0]?.message?.content || '';
+    if (!successfulReply) {
+      throw new Error(JSON.stringify(lastError || 'Nenhum modelo disponível'));
+    }
 
     return res.status(200).json({
-      text: replyText,
-      model: modelToUse,
+      text: successfulReply,
+      model: usedModel,
       mode,
       isPro,
       timestamp: new Date().toISOString(),
