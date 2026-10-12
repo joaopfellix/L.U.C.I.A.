@@ -26,9 +26,9 @@ export const LuciaPresence: React.FC<LuciaPresenceProps> = ({
   const rightEyelidRef = useRef<HTMLDivElement>(null);
   const tendrilGlowRef = useRef<HTMLDivElement>(null);
 
-  // Reliable image loading with fallback
-  const [imageSrc, setImageSrc] = useState<string>(OFFICIAL_IMAGE_URL);
-  const [isImageReady, setIsImageReady] = useState<boolean>(false);
+  // Initialize directly with the verified local asset to guarantee instant display without network delays
+  const [imageSrc, setImageSrc] = useState<string>(officialCharacterSrc);
+  const [isImageReady, setIsImageReady] = useState<boolean>(true);
 
   // Decoupled refs to prevent re-renders and preserve steady animation lifecycle
   const isDissolvingRef = useRef(isDissolving);
@@ -242,15 +242,6 @@ export const LuciaPresence: React.FC<LuciaPresenceProps> = ({
           onLoad={handleImageLoaded}
           referrerPolicy="no-referrer"
           className="w-full h-full object-contain pointer-events-none select-none"
-          style={{
-            // Seamless vignette: fades outer edges imperceptibly into the deep background #090A0F
-            maskImage:
-              'linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 6%, black 90%, transparent 100%)',
-            WebkitMaskImage:
-              'linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 6%, black 90%, transparent 100%)',
-            maskComposite: 'intersect',
-            WebkitMaskComposite: 'destination-in',
-          }}
         />
 
         {/* ================================================================= */}
