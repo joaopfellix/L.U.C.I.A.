@@ -1,0 +1,6 @@
+{
+  "name": "L.U.C.I.A. - Intelligent Automation Platform",
+  "description": "Logic Unit for Computing & Intelligent Automation - Plataforma de IA profissional para resolução de problemas, tarefas e automações.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
