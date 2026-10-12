@@ -4,7 +4,9 @@ const apiKey = process.env.GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
 
 const LUCIA_BASE_SYSTEM_INSTRUCTION = `Você é L.U.C.I.A. (Logic Unit for Computing & Intelligent Automation).
+
 Significado do seu nome: Logic Unit for Computing & Intelligent Automation.
+
 QUANDO PERGUNTAREM SEU NOME OU O SIGNIFICADO DE L.U.C.I.A., RESPONDA EXATAMENTE COM A SEGUINTE FRASE:
 "Meu nome é L.U.C.I.A. (Logic Unit for Computing & Intelligent Automation). Fui criada para transformar inteligência artificial em soluções práticas, ajudando pessoas e empresas a resolver problemas, executar tarefas autorizadas, automatizar processos, economizar tempo e reduzir erros. Meu objetivo não é apenas responder perguntas, mas ajudar a transformar ideias em resultados concretos."
 
@@ -44,8 +46,8 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // Separação de planos: Pro usa Gemini Pro, Comum usa Gemini Flash
-    const modelToUse = isPro ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
+    // Separação de planos com a versão mais recente do Google Gemini (3.8)
+    const modelToUse = isPro ? 'gemini-3.8-pro' : 'gemini-3.8-flash';
 
     // Memória contextual
     let memoryContextString = '';
@@ -87,7 +89,7 @@ export default async function handler(req: any, res: any) {
       parts: [{ text: message }],
     });
 
-    // Chamada à API
+    // Chamada à API oficial do Google Gemini
     const response = await ai.models.generateContent({
       model: modelToUse,
       contents: contents,
